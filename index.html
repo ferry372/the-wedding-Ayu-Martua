@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Ayu & Martua Wedding</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Sacramento&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Countdown -->
+    <link rel="stylesheet" href="countdown/default.css">
+    <script src="countdown/simplyCountdown.umd.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+
+<script type="module">
+
+/* =======================================================
+   COVER SYSTEM
+======================================================= */
+window.addEventListener("load", () => {
+    const cover = document.getElementById("cover");
+    const openBtn = document.getElementById("btn-open");
+
+    if (openBtn && cover) {
+        openBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            cover.classList.add("hidden");
+
+            setTimeout(() => {
+                document.querySelector("#home").scrollIntoView({
+                    behavior: "smooth"
+                });
+            }, 600);
+        });
+    }
+});
+
+
+/* =======================================================
+   FIREBASE CONFIG
+======================================================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // 🔥 CONFIG FIREBASE KAMU (ASLI)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBjcSiKWtD5SzQgrRoNsgZYykn2fqnL8xs",
+      authDomain: "wedding-chat-fe997.firebaseapp.com",
+      databaseURL: "https://wedding-chat-fe997-default-rtdb.firebaseio.com",
+      projectId: "wedding-chat-fe997",
+      storageBucket: "wedding-chat-fe997.firebasestorage.app",
+      messagingSenderId: "563725524024",
+      appId: "1:563725524024:web:a85e3fd7f5ea4888bb1acd",
+      measurementId: "G-Q7W5PKRF6C"
+    };
+
+    // Init Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const msgRef = ref(db, "wedding_messages");
+
+    // Kirim Pesan
+    window.sendMessage = () => {
+  const name = nameInput.value.trim() || "Tamu";
+  const text = messageInput.value.trim();
+  if (!text) return;
+
+  const status =
+    document.querySelector('input[name="kehadiran"]:checked')?.value || "Hadir";
+
+  const now = new Date();
+  const time = now.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  push(chatRef, {
+    name,
+    text,
+    status,
+    time
+  });
+
+  messageInput.value = "";
+};
+
+
+    // Tampilkan Pesan Realtime
+    onChildAdded(msgRef, (snapshot) => {
+        const data = snapshot.val();
+        const id = snapshot.key;
+
+        const el = document.createElement("div");
+
+        el.innerHTML = `
+            <strong>${data.name}</strong><br>
+            ${data.text}<br>
+            <span class="time">${data.time}</span>
+            <span class="delete-btn" onclick="deleteMsg('${id}')">Hapus</span>
+        `;
+
+        document.getElementById("chat-box").appendChild(el);
+    });
+
+    // Hapus pesan
+    window.deleteMsg = function(id) {
+        remove(ref(db, "wedding_messages/" + id));
+        location.reload();
+    };
+
+// Folder database Firebase
+const chatRef = ref(db, "wedding_messages");
+
+
+/* =======================================================
+   FRONTEND SYSTEM (SLIDER + LIVE CHAT)
+======================================================= */
+window.addEventListener("load", () => {
+
+    /* -------------- ELEMENT -------------- */
+    const chatBox = document.getElementById("chatBox");
+    const inputName = document.getElementById("nameInput");
+    const inputMessage = document.getElementById("messageInput");
+
+    const slider = document.getElementById("slider");
+    const slides = document.querySelectorAll(".slide");
+    const thumbs = document.querySelectorAll(".thumb");
+
+    let currentIndex = 0;
+    const totalSlides = slides.length;
+
+
+    /* =====================================================
+       BGM PLAY
+    ===================================================== */
+    const openSoundBtn = document.querySelector(".btn.btn-light");
+    if (openSoundBtn) {
+        openSoundBtn.addEventListener("click", () => {
+            const bgm = document.getElementById("bgm");
+            bgm?.play().catch(() => {});
+        });
+    }
+
+
+    /* =====================================================
+       SLIDER
+    ===================================================== */
+    if (slider) {
+        slider.style.width = `${totalSlides * 100}%`;
+        slides.forEach(slide => slide.style.width = `${100 / totalSlides}%`);
+
+        function showSlide(i) {
+            currentIndex = i;
+
+            if (currentIndex < 0) currentIndex = totalSlides - 1;
+            if (currentIndex >= totalSlides) currentIndex = 0;
+
+            slider.style.transform = `translateX(-${currentIndex * (100 / totalSlides)}%)`;
+
+            thumbs.forEach(t => t.classList.remove("active-thumb"));
+            if (thumbs[currentIndex]) {
+                thumbs[currentIndex].classList.add("active-thumb");
+            }
+        }
+
+        setInterval(() => {
+            showSlide(currentIndex + 1);
+        }, 6000);
+
+        showSlide(0);
+    }
+
+
+    /* =====================================================
+       CHAT SYSTEM (REAL TIME)
+    ===================================================== */
+
+    // Bubble builder
+    function createBubble(id, data) {
+    const item = document.createElement("div");
+    item.className = "chat-item";
+    item.dataset.id = id;
+
+    const meta = document.createElement("div");
+    meta.className = "chat-meta";
+
+    // 🎯 BADGE STATUS
+    const badgeColor = data.status === "Hadir" ? "#28a745" : "#dc3545";
+
+    meta.innerHTML = `
+      <strong>${data.name}</strong>
+      <span style="
+        margin-left:6px;
+        background:${badgeColor};
+        color:#fff;
+        font-size:11px;
+        padding:3px 8px;
+        border-radius:12px;
+      ">
+        ${data.status}
+      </span>
+      <span style="float:right;font-size:11px;color:#aaa">${data.time}</span>
+    `;
+
+    const del = document.createElement("span");
+    del.className = "delete-btn";
+    del.textContent = "🗑";
+    del.onclick = () => deleteMessage(id);
+
+    meta.appendChild(del);
+
+    const bubble = document.createElement("div");
+    bubble.className = "chat-message";
+    bubble.textContent = data.text;
+
+    item.appendChild(meta);
+    item.appendChild(bubble);
+
+    return item;
+}
+
+
+
+    /* ---------- LOAD REAL-TIME DARI FIREBASE ---------- */
+    onChildAdded(chatRef, (snapshot) => {
+        const id = snapshot.key;
+        const data = snapshot.val();
+
+        chatBox.appendChild(createBubble(id, data));
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+
+    /* ---------- HAPUS PESAN ---------- */
+    function deleteMessage(id) {
+        remove(ref(db, "wedding_messages/" + id));
+
+        const item = document.querySelector(`.chat-item[data-id="${id}"]`);
+        if (item) item.remove();
+    }
+
+
+    /* ---------- KIRIM PESAN ---------- */
+    window.sendMessage = function () {
+  const name = nameInput?.value.trim() || "Tamu";
+  const text = messageInput?.value.trim();
+  if (!text) return;
+
+  const status =
+    document.querySelector('input[name="kehadiran"]:checked')?.value || "Hadir";
+
+  const now = new Date();
+  const time = now.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  push(chatRef, { name, text, status, time });
+  messageInput.value = "";
+};
+
+
+    /* ---------- ENTER UNTUK KIRIM ---------- */
+    inputMessage?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+});
+
+</script>
+
+
+
+<body>
+
+<audio id="bgm" autoplay loop>
+    <source src="cinta terakhir.mp3" type="audio/mpeg">
+</audio>
+
+
+<!-- ======================================= -->
+<!-- 1. COVER AWAL (DESAIN BARU) -->
+<!-- ======================================= -->
+<section id="cover" class="cover text-center d-flex justify-content-center align-items-center">
+    <main>
+        <h4 class="wedding-title">THE WEDDING</h4>
+
+        <div class="circle-wrapper">
+            <img src="img/gambar1.jpg" class="photo-inside" alt="">
+            <img src="img/bingkai-removebg-preview.png" class="photo-frame" alt="">
+        </div>
+
+        <h1 class="couple-name">Ayu & Martua</h1>
+        <p class="wedding-date">Minggu, 25 Januari 2026</p>
+
+        <a href="#home" id="btn-open" class="btn btn-light mt-3 px-4 py-2">Buka Undangan</a>
+    </main>
+</section>
+
+
+<!-- ======================================= -->
+<!-- 2. MENU UTAMA -->
+<!-- ======================================= -->
+
+<section id="home" class="hero">
+    <div class="hero-text">
+        <h1 class="hero-names">
+            <span class="name-ayu">Ayu</span>
+            <span class="name-and">&</span>
+            <span class="name-martua">Martua</span>
+        </h1>
+        <div class="hero-date">25 • 01 • 2026</div>
+        <div class="hero-ayat">
+            وَمِنْ اٰيٰتِهٖٓ اَنْ خَلَقَ لَكُمْ مِّنْ اَنْفُسِكُمْ اَزْوَاجًا لِّتَسْكُنُوْٓا اِلَيْهَا وَجَعَلَ بَيْنَكُمْ مَّوَدَّةً وَّرَحْمَةًۗ اِنَّ فِيْ ذٰلِكَ لَاٰيٰتٍ لِّقَوْمٍ يَّتَفَكَّرُوْنَ
+
+"Dan di antara tanda-tanda kekuasaan-Nya ialah Dia menciptakan pasangan-pasangan dari jenismu sendiri, supaya kamu cenderung dan merasa tenteram kepadanya, dan dijadikan-Nya di antaramu rasa kasih dan sayang. Sesungguhnya pada yang demikian itu benar-benar terdapat tanda-tanda bagi kaum yang berpikir."
+            <span>(QS. Ar-Rum: 21)</span>
+        </div>
+    </div>
+</section>
+
+<!-- ======================================= -->
+<!-- 3. PROFIL PRIA -->
+<!-- ======================================= -->
+<section class="profil-pria">
+
+    <div class="profil-text-pria">
+        <h2 class="profil-title">The Groom</h2>
+
+        <div class="nama-lengkap">
+            Martua Raja Siregar
+            <span class="underline"></span>
+        </div>
+
+        <p><strong>Nama Panggilan:</strong> Raja</p>
+        <p><strong>Nama Lengkap:</strong> Martua Raja Siregar</p>
+        <p><strong>Orang Tua:</strong> Alm. Bapak Ali Imran Siregar & Ibu Nurhamidah Daulay</p>
+        <p><strong>Anak Ke:</strong> 7</p>
+
+        <div class="sosmed">
+            <a href="https://www.instagram.com/siregar_raja12" target="_blank">Instagram</a>
+        </div>
+    </div>
+
+</section>
+
+
+
+<!-- ======================================= -->
+<!-- 4. PROFIL WANITA -->
+<!-- ======================================= -->
+<section class="profil-wanita">
+
+    <div class="profil-text">
+        <h2 class="profil-title">The Bride</h2>
+
+        <div class="nama-lengkap">
+            Ayu Ifani Nasution
+            <span class="underline"></span>
+        </div>
+
+        <p><strong>Nama Panggilan:</strong> Ayu</p>
+        <p><strong>Nama Lengkap:</strong> Ayu Ifani Nasution</p>
+        <p><strong>Orang Tua:</strong> Bapak Idris Nasution & Ibu Fatimah Lubis</p>
+        <p><strong>Anak Ke:</strong> 2</p>
+
+        <div class="sosmed">
+            <a href="https://www.instagram.com/ifaninasution" target="_blank">Instagram</a>
+        </div>
+    </div>
+</section>
+
+<!-- ======================================= -->
+<!-- 5. RESEPSI -->
+<!-- ======================================= -->
+<section id="acara" class="acara-section">
+
+    <div class="acara-header">
+        <h2 class="save-title">SAVE THE DATE</h2>
+        <div class="garis-atas"></div>
+
+        <!-- Countdown -->
+        <div class="simply-countdown"></div>
+
+        <div class="garis-bawah-countdown"></div>
+    </div>
+
+    <div class="acara-content">
+
+        <!-- AKAD NIKAH -->
+        <div class="acara-box kiri">
+            <h3 class="acara-subtitle">Akad Nikah</h3>
+            <div class="garis-sub"></div>
+
+            <p><strong>Hari/Tanggal:</strong> Minggu, 25 Januari 2026</p>
+            <p><strong>Waktu:</strong> 08:00 WIB</p>
+            <p><strong>Lokasi:</strong> Jalan Sukmo Desa Kolam</p>
+
+            <a href="https://maps.app.goo.gl/vy3JEJrCTE9SFNsF6" 
+               class="btn btn-outline-light mt-2"
+               target="_blank">Lihat Lokasi</a>
+        </div>
+
+        <!-- RESEPSI -->
+        <div class="acara-box kanan">
+            <h3 class="acara-subtitle">Resepsi</h3>
+            <div class="garis-sub"></div>
+
+            <p><strong>Hari/Tanggal:</strong> Minggu, 25 Januari 2026</p>
+            <p><strong>Waktu:</strong> 10:00 - Selesai</p>
+            <p><strong>Lokasi:</strong> Jalan Sukmo Desa Kolam</p>
+
+            <a href="https://maps.app.goo.gl/vy3JEJrCTE9SFNsF6" 
+               class="btn btn-outline-light mt-2"
+               target="_blank">Lihat Lokasi</a>
+        </div>
+
+    </div>
+
+</section>
+
+<!-- ======================================= -->
+<!-- 6. GALERI FOTO -->
+<!-- ======================================= -->
+<section id="galeri" class="galeri-section">
+
+    <h2 class="galeri-title">Our Gallery</h2>
+
+    <!-- SLIDER UTAMA -->
+    <div class="slider-container">
+        <div class="slider" id="slider">
+            <img src="img/gambar3.jpg" class="slide">
+            <img src="img/gambar4.jpg" class="slide">
+            <img src="img/gambar2.jpg" class="slide">
+            <img src="img/gamabr7.jpg" class="slide">
+            <img src="img/gambar8.jpg" class="slide">
+            <img src="img/gambar9.jpg" class="slide">
+            <img src="img/gambar10.jpg" class="slide">
+            <img src="img/gambar11.jpg" class="slide">
+            <img src="img/gambar12.jpg" class="slide">
+            <img src="img/gambar13.jpg" class="slide">
+        </div>
+    </div>
+
+    <!-- THUMBNAIL -->
+    <div class="thumbnail-container">
+        <img src="img/gambar3.jpg" class="thumb" onclick="currentSlide(0)">
+        <img src="img/gambar4.jpg" class="thumb" onclick="currentSlide(1)">
+        <img src="img/gambar2.jpg" class="thumb" onclick="currentSlide(2)">
+        <img src="img/gamabr7.jpg" class="thumb" onclick="currentSlide(5)">
+        <img src="img/gambar8.jpg" class="thumb" onclick="currentSlide(6)">
+        <img src="img/gambar9.jpg" class="thumb" onclick="currentSlide(7)">
+        <img src="img/gambar10.jpg" class="thumb" onclick="currentSlide(8)">
+        <img src="img/gambar11.jpg" class="thumb" onclick="currentSlide(9)">
+        <img src="img/gambar12.jpg" class="thumb" onclick="currentSlide(10)">
+        <img src="img/gambar13.jpg" class="thumb" onclick="currentSlide(11)">
+    </div>
+
+</section>
+
+
+<!-- ======================================= -->
+<!-- 8. AMPLOP DIGITAL -->
+<!-- ======================================= -->
+<section id="amplop" class="content-section amplop-section">
+    <h2 class="amplop-title">Amplop Digital</h2>
+
+    <div class="amplop-box amplop-card">
+        <img src="img/gopay.png" class="logo-bank" alt="Gopay">
+        <div>
+            <p class="bank-title">Gopay</p>
+            <p class="bank-number">+62 831-9655-8530</p>
+            <p class="bank-name">Martua Raja Siregar</p>
+        </div>
+    </div>
+
+    <div class="amplop-box amplop-card">
+        <img src="img/cimb.png" class="logo-bank" alt="CIMB Niaga">
+        <div>
+            <p class="bank-title">CIMB Niaga</p>
+            <p class="bank-number">763667333400</p>
+            <p class="bank-name">Ayu Ifani Nasution</p>
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ======================================= -->
+<!-- 9. LOVE STORY -->
+<!-- ======================================= -->
+<section id="lovestory" class="love-section">
+
+    <div class="love-header">
+        <h2 class="love-title">Our Love Story</h2>
+        <div class="love-underline"></div>
+    </div>
+
+    <div class="love-timeline">
+
+        <div class="timeline-item">
+            <div class="circle"></div>
+            <p class="year">2016</p>
+            <p class="text">Awal berjumpa sebagai teman kerja.</p>
+        </div>
+
+        <div class="timeline-item">
+            <div class="circle"></div>
+            <p class="year">2018</p>
+            <p class="text">Sempat berpisah karena pindah toko.</p>
+        </div>
+
+        <div class="timeline-item">
+            <div class="circle"></div>
+            <p class="year">2021</p>
+            <p class="text">Dipertemukan kembali di tempat kerja yang sama.</p>
+        </div>
+
+        <div class="timeline-item">
+            <div class="circle"></div>
+            <p class="year">2022</p>
+            <p class="text">Hubungan mulai serius dan semakin kuat.</p>
+        </div>
+
+        <div class="timeline-item">
+            <div class="circle"></div>
+            <p class="year">2025</p>
+            <p class="text">11 Oktober 2025 — prosesi hantaran.</p>
+        </div>
+
+        <div class="timeline-item">
+            <div class="circle"></div>
+            <p class="year">2026</p>
+            <p class="text">25 Januari 2026 — melangsungkan pernikahan.</p>
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ======================================= -->
+<!-- 10. UCAPAN -->
+<!-- ======================================= -->
+<section id="ucapan" class="ucapan-container">
+
+  <h3 class="judul-ucapan">Ucapan & Doa</h3>
+
+  <!-- FORM INPUT -->
+  <div class="chat-input">
+
+    <!-- STATUS HADIR -->
+   <div class="status-hadir">
+  <label>
+    <input type="radio" name="kehadiran" value="Hadir" checked>
+    Hadir
+  </label>
+  <label>
+    <input type="radio" name="kehadiran" value="Tidak Hadir">
+    Tidak Hadir
+  </label>
+</div>
+    
+    <input type="text" id="nameInput" placeholder="Nama kamu..." />
+
+    <textarea id="messageInput" placeholder="Tulis ucapan & doa..."></textarea>
+
+    <button onclick="sendMessage()">Kirim</button>
+  </div>
+
+  <!-- TEMPAT KOMENTAR -->
+  <div id="chatBox" class="chat-box">
+  </div>
+
+</section>
+
+
+
+
+<section class="thankyou-section">
+  <div class="thankyou-content">
+    <div class="thankyou-title">
+      THANK
+      <span>You</span>
+    </div>
+
+    <div class="thankyou-text">
+      Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir untuk memberikan doa restu kepada kedua mempelai
+    </div>
+
+    <div class="closing">
+      Wassalamu’alaikum Warahmatullahi Wabarakatuh.
+    </div>
+  </div>
+</section>
+
+<section class="designed-section">
+  <div class="designed-content">
+    <p class="designed-text">designed by</p>
+
+    <div class="social-icons">
+      <a href="https://wa.me/6281273396237" target="_blank" class="icon">
+        <i class="fab fa-whatsapp"></i>
+      </a>
+      <a href="https://instagram.com/username" target="_blank" class="icon">
+        <i class="fab fa-instagram"></i>
+      </a>
+    </div>
+
+    <div class="brand">
+      <img src="img/logoferry.png" alt="Ferry">
+      <p>Ferry<br><span>Nasution</span></p>
+    </div>
+  </div>
+</section>
+
+
+<script>
+    simplyCountdown('.simply-countdown', {
+        year: 2026,
+        month: 1,
+        day: 25,
+        hours: 9,
+    });
+</script>
+
+
+
+</body>
+</html>
